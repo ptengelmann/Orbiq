@@ -13,7 +13,8 @@ export default async function Dashboard() {
       {session?.user ? (
         <div className="mt-4">
           <p>
-            Welcome, <strong>{name}</strong> ({email}) — role: <strong>{role}</strong>
+            Welcome, <strong>{name}</strong> ({email}) — role:{" "}
+            <strong>{role}</strong>
           </p>
           <p className="mt-2 text-gray-600">
             This page is protected. You’re seeing it because you’re signed in.
