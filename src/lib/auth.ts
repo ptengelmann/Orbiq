@@ -19,7 +19,7 @@ declare module "next-auth" {
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(1), // Allow any length for login
 });
 
 export const authOptions: NextAuthOptions = {
@@ -27,34 +27,68 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 90, // 90 days
-    updateAge: 60 * 60 * 24,   // refresh cookie at most once/day
+    updateAge: 60 * 60 * 24, // refresh cookie at most once/day
   },
   jwt: { maxAge: 60 * 60 * 24 * 90 },
 
   providers: [
     Credentials({
-      name: "Password",
+      id: "credentials",
+      name: "credentials",
       credentials: {
-        email: { label: "Email", type: "text" },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsed = loginSchema.safeParse(credentials);
-        if (!parsed.success) return null;
+        try {
+          console.log("Authorize attempt for:", credentials?.email);
+          
+          const parsed = loginSchema.safeParse(credentials);
+          if (!parsed.success) {
+            console.log("Invalid credentials format");
+            return null;
+          }
 
-        const { email, password } = parsed.data;
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.passwordHash) return null;
+          const { email, password } = parsed.data;
+          
+          const user = await prisma.user.findUnique({ 
+            where: { email },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+              passwordHash: true,
+            }
+          });
+          
+          console.log("User found:", user ? "Yes" : "No");
+          
+          if (!user || !user.passwordHash) {
+            console.log("User not found or no password hash");
+            return null;
+          }
 
-        const ok = await compare(password, user.passwordHash);
-        if (!ok) return null;
+          const passwordMatch = await compare(password, user.passwordHash);
+          console.log("Password match:", passwordMatch);
+          
+          if (!passwordMatch) {
+            console.log("Invalid password");
+            return null;
+          }
 
-        return {
-          id: user.id,
-          email: user.email ?? undefined,
-          name: user.name ?? undefined,
-          role: user.role,
-        };
+          console.log("Authentication successful for:", user.email);
+          
+          return {
+            id: user.id,
+            email: user.email ?? undefined,
+            name: user.name ?? undefined,
+            role: user.role,
+          };
+        } catch (error) {
+          console.error("Auth error:", error);
+          return null;
+        }
       },
     }),
   ],
@@ -68,7 +102,9 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
-      if (user) token.role = (user as any).role ?? "CREATOR";
+      if (user) {
+        token.role = (user as any).role ?? "CREATOR";
+      }
       return token;
     },
   },
@@ -76,4 +112,6 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/sign-in",
   },
+  
+  debug: process.env.NODE_ENV === "development",
 };

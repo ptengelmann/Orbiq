@@ -17,7 +17,10 @@ const RegisterSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log("Registration request body:", body);
+    
     const validatedData = RegisterSchema.parse(body);
+    console.log("Validated data:", validatedData);
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -25,6 +28,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
+      console.log("User already exists:", validatedData.email);
       return NextResponse.json(
         { error: "User already exists with this email" },
         { status: 400 }
@@ -33,25 +37,19 @@ export async function POST(request: NextRequest) {
 
     // Hash password
     const passwordHash = await hash(validatedData.password, 12);
+    console.log("Password hashed successfully");
 
-    // Create user with enhanced profile data
+    // Create user
     const user = await prisma.user.create({
       data: {
         email: validatedData.email,
         name: validatedData.name,
         role: validatedData.role,
         passwordHash,
-        // Store onboarding data as JSON for now
-        // You might want to create separate tables for this
-        onboardingData: {
-          creatorType: validatedData.creatorType,
-          agencyType: validatedData.agencyType,
-          niches: validatedData.niches,
-          audienceSize: validatedData.audienceSize,
-          completedAt: new Date().toISOString()
-        } as any
       },
     });
+
+    console.log("User created successfully:", user.id);
 
     // Return success (don't include sensitive data)
     return NextResponse.json({
@@ -62,20 +60,35 @@ export async function POST(request: NextRequest) {
         name: user.name,
         role: user.role
       }
-    });
+    }, { status: 201 });
 
   } catch (error) {
     console.error("Registration error:", error);
     
     if (error instanceof z.ZodError) {
+      console.log("Validation error:", error.issues);
       return NextResponse.json(
-        { error: "Invalid input data", details: error.errors },
+        { 
+          error: "Invalid input data", 
+          details: error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`)
+        },
         { status: 400 }
       );
     }
 
+    // Database connection error
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json(
+        { error: "Database connection failed" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { ChevronRight, Check, Users, Zap, Star, Camera, Mic, Youtube, Instagram, Monitor, Globe, Eye, EyeOff, Sparkles, Dumbbell, Scissors, Gamepad2, ChefHat, Plane, Briefcase, GraduationCap, Drama, Target } from 'lucide-react';
 
@@ -138,18 +139,18 @@ export default function SignUp() {
       case 3:
         if (accountType === "CREATOR") {
           if (selectedNiches.length === 0) newErrors.niches = "Select at least one niche";
-        }
-        break;
-      case 4:
-        if (accountType === "CREATOR") {
-          if (!audienceSize) newErrors.audienceSize = "Please select your audience size";
         } else {
-          // Agency account details
+          // Agency skips to account details at step 3
           if (!formData.name.trim()) newErrors.name = "Name is required";
           if (!formData.email.trim()) newErrors.email = "Email is required";
           if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Please enter a valid email";
           if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
           if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords don't match";
+        }
+        break;
+      case 4:
+        if (accountType === "CREATOR") {
+          if (!audienceSize) newErrors.audienceSize = "Please select your audience size";
         }
         break;
       case 5:
@@ -186,13 +187,13 @@ export default function SignUp() {
   };
 
   const handleSubmit = async () => {
-    const finalStep = accountType === "CREATOR" ? 5 : 4;
+    const finalStep = accountType === "CREATOR" ? 5 : 3; // Agency completes at step 3
     if (!validateStep(finalStep)) return;
     
     setLoading(true);
     try {
-      // Here you would call your registration API
-      const payload = {
+      // First, register the user
+      const registrationPayload = {
         ...formData,
         role: accountType,
         creatorType: accountType === "CREATOR" ? selectedType : undefined,
@@ -201,15 +202,54 @@ export default function SignUp() {
         audienceSize: accountType === "CREATOR" ? audienceSize : undefined,
       };
       
-      console.log("Registration payload:", payload);
+      console.log("Registration payload:", registrationPayload);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const registerRes = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(registrationPayload),
+      });
+
+      console.log("Registration response status:", registerRes.status);
       
-      // Redirect to sign-in or onboarding
-      router.push(`/auth/sign-in?email=${encodeURIComponent(formData.email)}`);
-    } catch (error) {
-      setErrors({ submit: "Something went wrong. Please try again." });
+      // Clone the response so we can read it multiple times if needed
+      const responseClone = registerRes.clone();
+      
+      let errorData;
+      try {
+        errorData = await registerRes.json();
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", parseError);
+        const textResponse = await responseClone.text();
+        console.error("Response text:", textResponse);
+        throw new Error("Server returned invalid response. Check server logs.");
+      }
+
+      if (!registerRes.ok) {
+        console.error("Registration failed:", errorData);
+        throw new Error(errorData.error || `Registration failed with status ${registerRes.status}`);
+      }
+
+      console.log("Registration successful:", errorData);
+
+      // Registration successful, now sign them in
+      const signInRes = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+        callbackUrl,
+      });
+
+      if (signInRes?.error) {
+        throw new Error("Failed to sign in after registration");
+      }
+
+      // Success! Redirect to onboarding
+      router.push(callbackUrl);
+      
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      setErrors({ submit: error.message || "Something went wrong. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -221,9 +261,9 @@ export default function SignUp() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0">
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
 
       <div className="relative z-10 flex min-h-screen">
@@ -268,18 +308,18 @@ export default function SignUp() {
                   <p className="text-lg text-purple-200">Choose up to 3 areas that best describe your content focus.</p>
                 </div>
               )}
-              
-              {((step === 4 && accountType === "CREATOR") || (step === 4 && accountType === "AGENCY")) && (
+
+              {step === 3 && accountType === "AGENCY" && (
                 <div>
-                  <h2 className="text-3xl font-bold mb-4">
-                    {accountType === "CREATOR" ? "Your audience size?" : "Create your account"}
-                  </h2>
-                  <p className="text-lg text-purple-200">
-                    {accountType === "CREATOR" 
-                      ? "This helps us suggest appropriate rate cards and partnerships."
-                      : "Just a few details to get your agency set up."
-                    }
-                  </p>
+                  <h2 className="text-3xl font-bold mb-4">Create your account</h2>
+                  <p className="text-lg text-purple-200">Just a few details to get your agency set up.</p>
+                </div>
+              )}
+              
+              {step === 4 && accountType === "CREATOR" && (
+                <div>
+                  <h2 className="text-3xl font-bold mb-4">Your audience size?</h2>
+                  <p className="text-lg text-purple-200">This helps us suggest appropriate rate cards and partnerships.</p>
                 </div>
               )}
               
@@ -413,11 +453,11 @@ export default function SignUp() {
                             <div className="flex-1">
                               <div className="font-semibold text-white">{type.label}</div>
                               <div className="text-sm text-purple-200">{type.desc}</div>
-                              {type.audience && (
+                              {"audience" in type && (
                                 <div className="text-xs text-purple-300 mt-1">{type.audience}</div>
                               )}
-                              {(type as any).size && (
-                                <div className="text-xs text-purple-300 mt-1">{(type as any).size}</div>
+                              {"size" in type && (
+                                <div className="text-xs text-purple-300 mt-1">{type.size}</div>
                               )}
                             </div>
                             {isSelected && <Check className="w-5 h-5 text-purple-400" />}
@@ -449,107 +489,51 @@ export default function SignUp() {
                 </div>
               )}
 
-              {/* Step 3: Niches (Creator only) */}
-              {step === 3 && accountType === "CREATOR" && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <h3 className="text-2xl font-bold text-white mb-2">Your content niches</h3>
-                    <p className="text-purple-200 text-sm">Select up to 3 areas ({selectedNiches.length}/3)</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {NICHES.map((niche) => {
-                      const Icon = niche.icon;
-                      const isSelected = selectedNiches.includes(niche.id);
-                      const isDisabled = !isSelected && selectedNiches.length >= 3;
-                      
-                      return (
-                        <button
-                          key={niche.id}
-                          onClick={() => handleNicheToggle(niche.id)}
-                          disabled={isDisabled}
-                          className={`p-4 rounded-xl border-2 transition-all duration-300 text-center ${
-                            isSelected
-                              ? "border-purple-400 bg-purple-500/20" 
-                              : isDisabled
-                              ? "border-white/10 bg-white/5 opacity-50 cursor-not-allowed"
-                              : "border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10"
-                          }`}
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            <Icon className="w-6 h-6 text-white" />
-                            <div className="text-sm font-medium text-white">{niche.label}</div>
-                            {isSelected && (
-                              <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                                <Check className="w-3 h-3 text-white" />
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {errors.niches && (
-                    <p className="text-red-400 text-sm">{errors.niches}</p>
-                  )}
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleBack}
-                      className="flex-1 py-3 border border-white/20 text-white font-semibold rounded-xl hover:bg-white/10 transition-all duration-300"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={handleNext}
-                      disabled={selectedNiches.length === 0}
-                      className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300"
-                    >
-                      Continue
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 4: Audience Size (Creator) or Account Details (Agency) */}
-              {step === 4 && (
+              {/* Step 3: Niches (Creator only) OR Account Details (Agency) */}
+              {step === 3 && (
                 <div className="space-y-6">
                   {accountType === "CREATOR" ? (
                     <>
                       <div className="text-center mb-6">
-                        <h3 className="text-2xl font-bold text-white mb-2">Your audience size</h3>
-                        <p className="text-purple-200 text-sm">This helps us suggest appropriate partnerships</p>
+                        <h3 className="text-2xl font-bold text-white mb-2">Your content niches</h3>
+                        <p className="text-purple-200 text-sm">Select up to 3 areas ({selectedNiches.length}/3)</p>
                       </div>
 
-                      <div className="space-y-3">
-                        {AUDIENCE_SIZES.map((size) => {
-                          const isSelected = audienceSize === size.id;
+                      <div className="grid grid-cols-2 gap-3">
+                        {NICHES.map((niche) => {
+                          const Icon = niche.icon;
+                          const isSelected = selectedNiches.includes(niche.id);
+                          const isDisabled = !isSelected && selectedNiches.length >= 3;
                           
                           return (
                             <button
-                              key={size.id}
-                              onClick={() => setAudienceSize(size.id)}
-                              className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left ${
+                              key={niche.id}
+                              onClick={() => handleNicheToggle(niche.id)}
+                              disabled={isDisabled}
+                              className={`p-4 rounded-xl border-2 transition-all duration-300 text-center ${
                                 isSelected
                                   ? "border-purple-400 bg-purple-500/20" 
+                                  : isDisabled
+                                  ? "border-white/10 bg-white/5 opacity-50 cursor-not-allowed"
                                   : "border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10"
                               }`}
                             >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className="font-semibold text-white">{size.label}</div>
-                                  <div className="text-sm text-purple-200">{size.desc}</div>
-                                </div>
-                                {isSelected && <Check className="w-5 h-5 text-purple-400" />}
+                              <div className="flex flex-col items-center gap-2">
+                                <Icon className="w-6 h-6 text-white" />
+                                <div className="text-sm font-medium text-white">{niche.label}</div>
+                                {isSelected && (
+                                  <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                                    <Check className="w-3 h-3 text-white" />
+                                  </div>
+                                )}
                               </div>
                             </button>
                           );
                         })}
                       </div>
 
-                      {errors.audienceSize && (
-                        <p className="text-red-400 text-sm">{errors.audienceSize}</p>
+                      {errors.niches && (
+                        <p className="text-red-400 text-sm">{errors.niches}</p>
                       )}
 
                       <div className="flex gap-3">
@@ -561,7 +545,7 @@ export default function SignUp() {
                         </button>
                         <button
                           onClick={handleNext}
-                          disabled={!audienceSize}
+                          disabled={selectedNiches.length === 0}
                           className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300"
                         >
                           Continue
@@ -569,7 +553,7 @@ export default function SignUp() {
                       </div>
                     </>
                   ) : (
-                    /* Agency Account Details */
+                    /* Agency Account Details at Step 3 */
                     <>
                       <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold text-white mb-2">Create your account</h3>
@@ -635,6 +619,12 @@ export default function SignUp() {
                         </div>
                       </div>
 
+                      {errors.submit && (
+                        <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4">
+                          <p className="text-red-300 text-sm">{errors.submit}</p>
+                        </div>
+                      )}
+
                       <div className="flex gap-3">
                         <button
                           onClick={handleBack}
@@ -652,6 +642,62 @@ export default function SignUp() {
                       </div>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Step 4: Audience Size (Creator only) */}
+              {step === 4 && accountType === "CREATOR" && (
+                <div className="space-y-6">
+                  <div className="text-center mb-6">
+                    <h3 className="text-2xl font-bold text-white mb-2">Your audience size</h3>
+                    <p className="text-purple-200 text-sm">This helps us suggest appropriate partnerships</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {AUDIENCE_SIZES.map((size) => {
+                      const isSelected = audienceSize === size.id;
+                      
+                      return (
+                        <button
+                          key={size.id}
+                          onClick={() => setAudienceSize(size.id)}
+                          className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left ${
+                            isSelected
+                              ? "border-purple-400 bg-purple-500/20" 
+                              : "border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-semibold text-white">{size.label}</div>
+                              <div className="text-sm text-purple-200">{size.desc}</div>
+                            </div>
+                            {isSelected && <Check className="w-5 h-5 text-purple-400" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {errors.audienceSize && (
+                    <p className="text-red-400 text-sm">{errors.audienceSize}</p>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleBack}
+                      className="flex-1 py-3 border border-white/20 text-white font-semibold rounded-xl hover:bg-white/10 transition-all duration-300"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      disabled={!audienceSize}
+                      className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300"
+                    >
+                      Continue
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -721,6 +767,12 @@ export default function SignUp() {
                       {errors.confirmPassword && <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>}
                     </div>
                   </div>
+
+                  {errors.submit && (
+                    <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4">
+                      <p className="text-red-300 text-sm">{errors.submit}</p>
+                    </div>
+                  )}
 
                   <div className="flex gap-3">
                     <button
