@@ -1,53 +1,42 @@
+// src/app/onboarding/done/page.tsx
 "use client";
 
-import { useState } from "react";
-import { Sparkles, Check, Rocket, ExternalLink, ArrowRight, Copy, Share2, Globe, Palette, Target } from "lucide-react";
-import { completeOnboarding } from "./actions";
+import { useState, useEffect } from "react";
+import { CheckCircle, Sparkles, Copy, ExternalLink, ArrowRight, Palette, Globe, Brain } from "lucide-react";
 import Link from "next/link";
 
 export default function OnboardingDone() {
-  const [loading, setLoading] = useState(false);
+  const [mediaKitUrl, setMediaKitUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
-  // This would come from your session/user data
-  const userMediaKitUrl = "https://orbiq.co/u/yourhandle";
-  const achievements = [
-    {
-      icon: Globe,
-      title: "Professional Media Kit",
-      description: "Live and ready to share with brands",
-      status: "completed"
-    },
-    {
-      icon: Palette,
-      title: "AI Brand Kit Generated",
-      description: "Colors, voice, and logo concepts created",
-      status: "completed"
-    },
-    {
-      icon: Target,
-      title: "Workspace Created",
-      description: "Your creator hub is set up and ready",
-      status: "completed"
+  useEffect(() => {
+    async function fetchUserData() {
+      try {
+        const response = await fetch('/api/user/profile');
+        if (response.ok) {
+          const profile = await response.json();
+          setUserProfile(profile);
+          
+          // Get the user's media kit
+          const mediaKitResponse = await fetch('/api/user/mediakit');
+          if (mediaKitResponse.ok) {
+            const mediaKit = await mediaKitResponse.json();
+            setMediaKitUrl(`https://orbiq.co/u/${mediaKit.handle}`);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+      }
     }
-  ];
+
+    fetchUserData();
+  }, []);
 
   const copyMediaKitUrl = () => {
-    navigator.clipboard.writeText(userMediaKitUrl);
+    navigator.clipboard.writeText(mediaKitUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleComplete = async () => {
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      await completeOnboarding(formData);
-    } catch (error) {
-      console.error("Error completing onboarding:", error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -60,163 +49,123 @@ export default function OnboardingDone() {
       </div>
 
       <div className="relative z-10 flex min-h-screen items-center justify-center p-8">
-        <div className="w-full max-w-4xl">
-          <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-12 border border-white/20 shadow-2xl text-center">
+        <div className="w-full max-w-2xl text-center">
+          {/* Success Animation */}
+          <div className="mb-8">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center mb-6 animate-pulse">
+              <CheckCircle className="w-12 h-12 text-white" />
+            </div>
             
-            {/* Success Animation */}
-            <div className="mb-8">
-              <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-                <Rocket className="w-12 h-12 text-white" />
-              </div>
-              <h1 className="text-4xl font-bold text-white mb-4">
-                🎉 You're all set!
-              </h1>
-              <p className="text-xl text-purple-200 max-w-2xl mx-auto">
-                Your Orbiq workspace is ready to help you build your creator brand and land amazing partnerships.
-              </p>
-            </div>
+            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+              🎉 You're all set!
+            </h1>
+            
+            <p className="text-xl text-purple-200 mb-8">
+              Your AI-powered creator workspace is ready to help you land better brand deals
+            </p>
+          </div>
 
-            {/* Achievements Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {achievements.map((achievement, index) => {
-                const Icon = achievement.icon;
-                return (
-                  <div key={index} className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-4">
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="font-semibold text-white mb-2">{achievement.title}</h3>
-                    <p className="text-sm text-purple-200 mb-3">{achievement.description}</p>
-                    <div className="flex items-center justify-center gap-2 text-green-400">
-                      <Check className="w-4 h-4" />
-                      <span className="text-sm">Complete</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Media Kit Sharing */}
-            <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl p-6 border border-purple-400/30 mb-8">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Share2 className="w-6 h-6 text-purple-300" />
-                <h3 className="text-lg font-semibold text-white">Share Your Media Kit</h3>
+          {/* What Was Created */}
+          <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">What we created for you</h2>
+            
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Brain className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-white mb-2">AI Brand Kit</h3>
+                <p className="text-sm text-purple-200">Custom colors, voice guidelines, and logo concepts</p>
               </div>
               
-              <div className="bg-black/20 rounded-lg p-4 mb-4">
-                <p className="text-purple-300 font-mono text-sm break-all">{userMediaKitUrl}</p>
+              <div className="text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Globe className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-white mb-2">Media Kit</h3>
+                <p className="text-sm text-purple-200">Professional page for brand partnerships</p>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={copyMediaKitUrl}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-colors"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Copied!" : "Copy URL"}
-                </button>
-                
-                <Link
-                  href={userMediaKitUrl}
-                  target="_blank"
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  View Media Kit
-                </Link>
+              <div className="text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-white mb-2">Workspace</h3>
+                <p className="text-sm text-purple-200">Dashboard to manage campaigns and analytics</p>
               </div>
             </div>
 
-            {/* Next Steps */}
-            <div className="text-left mb-8">
-              <h3 className="text-lg font-semibold text-white mb-4 text-center">What's next?</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-blue-400 font-semibold text-sm">1</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white mb-1">Customize Your Brand Kit</h4>
-                      <p className="text-sm text-purple-200">Fine-tune colors, voice, and generate logo concepts</p>
-                    </div>
+            {/* Media Kit URL */}
+            {mediaKitUrl && (
+              <div className="bg-black/20 rounded-2xl p-6 mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Globe className="w-6 h-6 text-green-400" />
+                  <div className="text-left">
+                    <h3 className="font-semibold text-white">Your Media Kit is Live!</h3>
+                    <p className="text-sm text-purple-200">Share this with brands to get collaborations</p>
                   </div>
                 </div>
                 
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-green-400 font-semibold text-sm">2</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white mb-1">Share Your Media Kit</h4>
-                      <p className="text-sm text-purple-200">Start getting brand partnership inquiries</p>
-                    </div>
-                  </div>
+                <div className="bg-white/10 rounded-lg p-4 mb-4">
+                  <p className="text-purple-300 font-mono text-sm break-all">{mediaKitUrl}</p>
                 </div>
                 
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-yellow-400 font-semibold text-sm">3</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white mb-1">Create Campaigns</h4>
-                      <p className="text-sm text-purple-200">Manage brand partnerships and deliverables</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-purple-400 font-semibold text-sm">4</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white mb-1">Track Your Growth</h4>
-                      <p className="text-sm text-purple-200">Monitor earnings and partnership performance</p>
-                    </div>
-                  </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={copyMediaKitUrl}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200"
+                  >
+                    {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied ? "Copied!" : "Copy URL"}
+                  </button>
+                  
+                  <button
+                    onClick={() => window.open(mediaKitUrl, '_blank')}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-lg rounded-lg text-white transition-all duration-200"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Preview
+                  </button>
                 </div>
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/dashboard/brand"
-                className="flex items-center justify-center gap-2 px-8 py-4 bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-colors"
-              >
-                <Palette className="w-5 h-5" />
-                Customize Brand Kit
-              </Link>
-              
-              <button
-                onClick={handleComplete}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:shadow-lg transition-all duration-300 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    Go to Dashboard
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Branding */}
-            <div className="mt-8 pt-8 border-t border-white/20">
-              <div className="flex items-center justify-center gap-3 text-purple-300">
-                <Sparkles className="w-5 h-5" />
-                <span className="text-sm">Welcome to Orbiq - Let's build something amazing together</span>
+          {/* Next Steps */}
+          <div className="space-y-4 mb-8">
+            <h2 className="text-xl font-bold text-white">Next steps</h2>
+            
+            <div className="text-left space-y-3">
+              <div className="flex items-center gap-3 text-purple-200">
+                <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs text-purple-300">1</div>
+                <span>Share your media kit URL on social media and in your bio</span>
+              </div>
+              <div className="flex items-center gap-3 text-purple-200">
+                <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs text-purple-300">2</div>
+                <span>Check your dashboard to see inquiries from brands</span>
+              </div>
+              <div className="flex items-center gap-3 text-purple-200">
+                <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs text-purple-300">3</div>
+                <span>Turn brand briefs into campaigns with AI assistance</span>
               </div>
             </div>
+          </div>
+
+          {/* CTA Button */}
+          <Link 
+            href="/dashboard"
+            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300"
+          >
+            Go to Dashboard
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+
+          {/* Orbiq Branding */}
+          <div className="flex items-center justify-center gap-3 mt-12 text-purple-300">
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold">Orbiq</span>
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
@@ -15,13 +16,20 @@ model User {
   image                String?
   role                 Role        @default(CREATOR)
   onboardingCompleted  Boolean     @default(false)
-  passwordHash         String?     // <-- added
+  passwordHash         String?
+
+  // Enhanced creator profile data from signup
+  creatorType          String?     // youtuber, tiktoker, instagrammer, streamer, podcaster, multi
+  agencyType           String?     // talent, marketing, media
+  niches               String[]    // tech, fitness, beauty, lifestyle, business, etc.
+  audienceSize         String?     // micro, macro, mega, celebrity
 
   accounts    Account[]
   sessions    Session[]
   memberships Membership[]
   brandKits   BrandKit[]  @relation("UserBrandKits")
   mediaKits   MediaKit[]  @relation("UserMediaKits")
+  campaigns   Campaign[]  // ADDED: Missing relation field for Campaign
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -87,21 +95,34 @@ model Membership {
   @@unique([userId, organizationId])
 }
 
-/* ========= Brand Kit ========= */
+/* ========= Enhanced Brand Kit ========= */
 model BrandKit {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   userId      String   @db.ObjectId
   user        User     @relation(name: "UserBrandKits", fields: [userId], references: [id], onDelete: Cascade)
 
+  // Basic brand info
   brandName   String?
   vibe        String?
   audience    String?
   tagline     String?
-  palette     String[]
-  voice       Json?
-  logoPrompts String[]
+  
+  // Visual identity
+  palette     String[]    // Array of hex colors
+  
+  // Brand voice (stored as JSON)
+  voice       Json?       // { attributes: [], dos: [], donts: [], tone: "", personality: [] }
+  
+  // Logo generation
+  logoPrompts String[]    // AI prompts for logo generation
+  
+  // Enhanced AI-generated content (stored as JSON)
+  contentTemplates     Json?    // Platform-specific content templates
+  rateCardSuggestions  Json?    // Pricing suggestions based on audience size
+  platformGuidelines   Json?    // Platform-specific brand guidelines
 
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
   @@index([createdAt])
@@ -113,16 +134,42 @@ model MediaKit {
   userId      String   @db.ObjectId
   user        User     @relation(name: "UserMediaKits", fields: [userId], references: [id], onDelete: Cascade)
 
-  handle      String   @unique
+  handle      String   @unique  // FIXED: Removed duplicate @@index([handle])
   title       String?
   bio         String?
-  links       Json?
-  brandKitId  String?    @db.ObjectId
+  website     String?
+  links       Json?       // Social media links and other URLs
+  brandKitId  String?     @db.ObjectId
+
+  // Analytics and insights
+  views       Int      @default(0)
+  inquiries   Int      @default(0)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
+  // REMOVED: @@index([handle]) - redundant with @unique
+}
+
+/* ========= Future: Campaigns & Partnerships ========= */
+model Campaign {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  brand       String?
+  status      CampaignStatus @default(DRAFT)
+  deliverables Json?   // Array of deliverable objects
+  timeline    Json?    // Milestone and deadline objects
+  compensation String? // Rate or compensation details
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
 
 /* ========= Enums ========= */
@@ -142,4 +189,12 @@ enum OrgRole {
 enum OrgType {
   AGENCY
   CREATOR_TEAM
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  IN_REVIEW
+  COMPLETED
+  CANCELLED
 }
