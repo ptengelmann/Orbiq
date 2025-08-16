@@ -1,12 +1,10 @@
-// middleware.ts (ROOT)
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 function hasSessionCookie(req: NextRequest) {
   const c = req.cookies;
   return (
-    c.has("authjs.session-token") ||
-    c.has("__Secure-authjs.session-token") ||
     c.has("next-auth.session-token") ||
     c.has("__Secure-next-auth.session-token")
   );
