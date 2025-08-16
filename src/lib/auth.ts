@@ -1,9 +1,9 @@
 import type { DefaultSession, NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
-// import Google from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { compare } from "bcryptjs";
 
 declare module "next-auth" {
   interface Session extends DefaultSession {
@@ -17,34 +17,38 @@ declare module "next-auth" {
   }
 }
 
-const credentialsSchema = z.object({
+const loginSchema = z.object({
   email: z.string().email(),
-  name: z.string().optional(),
-  role: z.enum(["CREATOR", "AGENCY"]).optional(),
+  password: z.string().min(6),
 });
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 60 * 60 * 24 * 90, // 90 days
+    updateAge: 60 * 60 * 24,   // refresh cookie at most once/day
+  },
+  jwt: { maxAge: 60 * 60 * 24 * 90 },
+
   providers: [
     Credentials({
-      name: "Dev Login",
+      name: "Password",
       credentials: {
         email: { label: "Email", type: "text" },
-        name: { label: "Name", type: "text" },
-        role: { label: "Role", type: "text" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsed = credentialsSchema.safeParse(credentials);
+        const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
-        const { email, name, role } = parsed.data;
 
-        let user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
-          user = await prisma.user.create({
-            data: { email, name, role: (role ?? "CREATOR") as any },
-          });
-        }
+        const { email, password } = parsed.data;
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user || !user.passwordHash) return null;
+
+        const ok = await compare(password, user.passwordHash);
+        if (!ok) return null;
+
         return {
           id: user.id,
           email: user.email ?? undefined,
@@ -53,11 +57,8 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
-    // Google({
-    //   clientId: process.env.GOOGLE_CLIENT_ID!,
-    //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    // }),
   ],
+
   callbacks: {
     async session({ session, token }) {
       if (session.user && token.sub) {
@@ -71,6 +72,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
   },
+
   pages: {
     signIn: "/auth/sign-in",
   },

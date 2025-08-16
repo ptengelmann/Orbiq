@@ -1,27 +1,16 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import Link from "next/link";
 
-export default async function Dashboard() {
-  const session = await getServerSession(authOptions);
-  const role = session?.user?.role ?? "CREATOR";
-  const name = session?.user?.name ?? "User";
-  const email = session?.user?.email ?? "";
-
+export default function Home() {
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      {session?.user ? (
-        <div className="mt-4">
-          <p>
-            Welcome, <strong>{name}</strong> ({email}) — role: <strong>{role}</strong>
-          </p>
-          <p className="mt-2 text-gray-600">
-            This page is protected. You’re seeing it because you’re signed in.
-          </p>
-        </div>
-      ) : (
-        <p className="mt-4 text-red-600">Not signed in.</p>
-      )}
+    <main className="mx-auto max-w-4xl px-6 py-20">
+      <h1 className="text-4xl font-bold tracking-tight">Orbiq</h1>
+      <p className="mt-4 text-lg text-gray-600">
+        Build, grow, and monetise your creator brand — in one place.
+      </p>
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Link href="/onboarding" className="rounded-md border px-4 py-2 hover:bg-gray-50">Get started</Link>
+        <Link href="/dashboard" className="rounded-md border px-4 py-2 hover:bg-gray-50">Go to dashboard</Link>
+      </div>
     </main>
   );
 }
