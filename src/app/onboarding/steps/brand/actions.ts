@@ -57,29 +57,144 @@ const AUDIENCE_RATE_MAP = {
   celebrity: { base: 10000, multiplier: 10, description: "Premium creator rates" },
 };
 
-// Niche-specific brand guidelines
+// Enhanced fallback brand kits based on niche and creator type
+const SMART_BRAND_KITS = {
+  tech_youtuber: {
+    tagline: "Demystifying Tech, One Video at a Time",
+    palette: ["#667eea", "#764ba2", "#4a90e2", "#50e3c2", "#b4ec51", "#f093fb"],
+    voice: {
+      attributes: ["analytical", "innovative", "educational"],
+      dos: ["Break down complex concepts", "Stay current with trends", "Engage with tech community"],
+      donts: ["Oversimplify without context", "Ignore accessibility", "Promote unethical tech"]
+    },
+    logoPrompts: [
+      "Modern tech logo with circuit elements",
+      "Clean YouTube channel branding for tech reviewer",
+      "Minimalist logo combining play button and tech iconography"
+    ]
+  },
+  fitness_tiktoker: {
+    tagline: "Transforming Lives Through Movement",
+    palette: ["#ff6b6b", "#4ecdc4", "#ffe66d", "#a8e6cf", "#ff8b94", "#ffd93d"],
+    voice: {
+      attributes: ["motivational", "energetic", "results-driven"],
+      dos: ["Show real transformations", "Provide quick actionable tips", "Build supportive community"],
+      donts: ["Promote unhealthy habits", "Body shame", "Give medical advice"]
+    },
+    logoPrompts: [
+      "Dynamic fitness logo with movement lines",
+      "TikTok optimized fitness brand mark",
+      "Energetic logo combining dumbbells and social media elements"
+    ]
+  },
+  beauty_instagrammer: {
+    tagline: "Authentic Beauty, Authentic You",
+    palette: ["#ff9a8b", "#a8edea", "#fed6e3", "#ffeaa7", "#dda0dd", "#98fb98"],
+    voice: {
+      attributes: ["glamorous", "inclusive", "trend-setting"],
+      dos: ["Showcase diverse beauty", "Share honest product reviews", "Create aspirational content"],
+      donts: ["Promote unrealistic standards", "Hide sponsorships", "Exclude different skin tones"]
+    },
+    logoPrompts: [
+      "Elegant beauty logo with makeup brush elements",
+      "Instagram-optimized beauty brand identity",
+      "Sophisticated logo combining cosmetics and social media"
+    ]
+  },
+  lifestyle_multi: {
+    tagline: "Living Life, Sharing Stories",
+    palette: ["#ffeaa7", "#fab1a0", "#e17055", "#6c5ce7", "#a29bfe", "#fd79a8"],
+    voice: {
+      attributes: ["authentic", "relatable", "inspiring"],
+      dos: ["Share genuine moments", "Connect with audience personally", "Inspire positive change"],
+      donts: ["Fake perfect life", "Overshare personal details", "Promote toxic positivity"]
+    },
+    logoPrompts: [
+      "Versatile lifestyle brand logo",
+      "Multi-platform optimized personal brand mark",
+      "Clean logo reflecting authentic lifestyle content"
+    ]
+  },
+  business_podcaster: {
+    tagline: "Where Insights Meet Action",
+    palette: ["#2d3748", "#4a5568", "#667eea", "#764ba2", "#f093fb", "#4ecdc4"],
+    voice: {
+      attributes: ["authoritative", "insightful", "strategic"],
+      dos: ["Provide actionable advice", "Interview industry leaders", "Share data-driven insights"],
+      donts: ["Give financial advice without expertise", "Make unrealistic promises", "Ignore ethical considerations"]
+    },
+    logoPrompts: [
+      "Professional podcast logo with microphone elements",
+      "Business-focused brand mark for audio content",
+      "Executive-level logo combining sound waves and business iconography"
+    ]
+  }
+};
+
+// Niche-specific brand guidelines (fallback)
 const NICHE_BRAND_MAP = {
   lifestyle: {
     colors: ["warm", "approachable", "instagram-friendly"],
     voice: ["authentic", "relatable", "inspiring"],
+    palette: ["#ffeaa7", "#fab1a0", "#e17055", "#6c5ce7", "#a29bfe", "#fd79a8"],
+    tagline: "Living Authentically, Inspiring Others"
   },
   fitness: {
     colors: ["energetic", "motivational", "bold"],
     voice: ["motivational", "encouraging", "results-driven"],
+    palette: ["#ff6b6b", "#4ecdc4", "#ffe66d", "#a8e6cf", "#ff8b94", "#ffd93d"],
+    tagline: "Stronger Every Day"
   },
   tech: {
     colors: ["modern", "sleek", "professional"],
     voice: ["informative", "innovative", "analytical"],
+    palette: ["#667eea", "#764ba2", "#4a90e2", "#50e3c2", "#b4ec51", "#f093fb"],
+    tagline: "Innovation Through Technology"
   },
   beauty: {
     colors: ["aesthetic", "trendy", "vibrant"],
     voice: ["glamorous", "confident", "trend-setting"],
+    palette: ["#ff9a8b", "#a8edea", "#fed6e3", "#ffeaa7", "#dda0dd", "#98fb98"],
+    tagline: "Beauty Without Boundaries"
   },
   business: {
     colors: ["professional", "trustworthy", "sophisticated"],
     voice: ["authoritative", "knowledgeable", "strategic"],
+    palette: ["#2d3748", "#4a5568", "#667eea", "#764ba2", "#f093fb", "#4ecdc4"],
+    tagline: "Success Through Strategy"
   }
 };
+
+function generateSmartBrandKit(creatorType: string, primaryNiche: string, brandName: string, vibeText: string, platforms: string[]): BrandKitPayload {
+  // Try to find a smart brand kit that matches creator type and niche
+  const smartKey = `${primaryNiche}_${creatorType}` as keyof typeof SMART_BRAND_KITS;
+  if (SMART_BRAND_KITS[smartKey]) {
+    const smartKit = SMART_BRAND_KITS[smartKey];
+    return {
+      ...smartKit,
+      tagline: brandName ? `${brandName} - ${smartKit.tagline}` : smartKit.tagline
+    };
+  }
+
+  // Fallback to niche-based brand kit
+  const nicheData = NICHE_BRAND_MAP[primaryNiche as keyof typeof NICHE_BRAND_MAP] || NICHE_BRAND_MAP.lifestyle;
+  
+  return {
+    tagline: brandName ? `${brandName} - ${nicheData.tagline}` : nicheData.tagline,
+    palette: nicheData.palette,
+    voice: {
+      attributes: nicheData.voice,
+      dos: [`Be ${nicheData.voice[0]}`, `Share ${primaryNiche} content`, "Engage authentically with your audience"],
+      donts: ["Don't be inauthentic", "Don't ignore your community", "Don't stray from your brand voice"]
+    },
+    logoPrompts: [
+      `Modern ${primaryNiche} logo for ${creatorType}`,
+      `${brandName || "Personal brand"} logo optimized for ${platforms[0]}`,
+      `Clean and professional ${vibeText} design`,
+      `${primaryNiche} brand mark with ${creatorType} aesthetic`
+    ]
+  };
+}
 
 export async function generateBrandKit(formData: FormData) {
   try {
@@ -127,10 +242,9 @@ export async function generateBrandKit(formData: FormData) {
     // Build intelligent context
     const platforms = CREATOR_PLATFORM_MAP[creatorType as keyof typeof CREATOR_PLATFORM_MAP] || ["Social Media"];
     const primaryNiche = niches[0] || "lifestyle";
-    const nicheData = NICHE_BRAND_MAP[primaryNiche as keyof typeof NICHE_BRAND_MAP] || NICHE_BRAND_MAP.lifestyle;
-    const rateData = AUDIENCE_RATE_MAP[audienceSize as keyof typeof AUDIENCE_RATE_MAP] || AUDIENCE_RATE_MAP.macro;
 
     // Build vibe and audience strings
+    const nicheData = NICHE_BRAND_MAP[primaryNiche as keyof typeof NICHE_BRAND_MAP] || NICHE_BRAND_MAP.lifestyle;
     const vibeText = parsed.customVibe || (parsed.selectedVibes && parsed.selectedVibes.length > 0 
       ? parsed.selectedVibes.join(", ") 
       : nicheData.voice.join(", "));
@@ -148,69 +262,60 @@ export async function generateBrandKit(formData: FormData) {
       audienceText
     });
 
-    // Simplified AI prompt for better reliability
-    const system = `You are a brand strategist for creators. Create a brand kit with ONLY these keys:
-- tagline: A memorable tagline for this creator
-- palette: Array of 5-6 hex color codes (e.g., ["#FF5733", "#33FF57"])
-- voice: Object with attributes (array), dos (array), donts (array)
-- logoPrompts: Array of 3-4 logo description prompts
+    let data: BrandKitPayload;
+
+    // Try AI generation first, but always have fallback
+    try {
+      // Check if OpenAI API key exists and is valid
+      if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.startsWith('sk-')) {
+        console.log("Attempting AI generation...");
+        
+        const system = `You are a brand strategist for creators. Create a brand kit with ONLY these keys:
+- tagline: A memorable tagline for this creator (personalized for their brand name if provided)
+- palette: Array of 6 hex color codes that work well together
+- voice: Object with attributes (array of 3-4 adjectives), dos (array of 3-4 action items), donts (array of 3-4 things to avoid)
+- logoPrompts: Array of 3-4 specific logo description prompts for this creator type
 
 Return ONLY valid JSON. No explanations.`;
 
-    const user_prompt = `Creator: ${creatorType} on ${platforms.join(", ")}
+        const user_prompt = `Creator: ${creatorType} on ${platforms.join(", ")}
 Niches: ${niches.join(", ")}
-Audience: ${audienceSize} (${audienceText})
-Brand: ${parsed.brandName || "Personal Brand"}
-Style: ${vibeText}
+Audience: ${audienceSize} audience interested in ${audienceText}
+Brand Name: ${parsed.brandName || "Personal Brand"}
+Desired Style: ${vibeText}
 
-Create a brand kit for this ${primaryNiche} ${creatorType} with ${audienceSize} audience.`;
+Create a personalized brand kit for this ${primaryNiche} ${creatorType}.`;
 
-    console.log("Sending to AI:", { system, user_prompt });
-
-    // Check if OpenAI API key exists
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OpenAI API key is missing");
-      throw new Error("AI service not configured");
-    }
-
-    const content = await chatJSON({ 
-      system, 
-      user: user_prompt, 
-      model: "gpt-4o-mini" // Use the cheaper model for better reliability
-    });
-    
-    console.log("AI response:", content);
-
-    let data;
-    try {
-      data = PayloadSchema.parse(JSON.parse(content));
-    } catch (parseError) {
-      console.error("Failed to parse AI response, using fallback:", parseError);
+        const content = await chatJSON({ 
+          system, 
+          user: user_prompt, 
+          model: "gpt-4o-mini"
+        });
+        
+        console.log("AI response received:", content);
+        
+        // Parse and validate AI response
+        const aiData = JSON.parse(content);
+        data = PayloadSchema.parse(aiData);
+        
+        console.log("AI generation successful");
+        
+      } else {
+        throw new Error("OpenAI API key not configured");
+      }
+    } catch (aiError) {
+      console.log("AI generation failed, using smart fallback:", aiError);
       
-      // Fallback brand kit based on niche
-      data = {
-        tagline: `${parsed.brandName || "Your Brand"} - ${primaryNiche} ${creatorType}`,
-        palette: primaryNiche === "tech" 
-          ? ["#667eea", "#764ba2", "#f093fb", "#4a90e2", "#50e3c2", "#b4ec51"]
-          : primaryNiche === "fitness"
-          ? ["#ff6b6b", "#4ecdc4", "#ffe66d", "#a8e6cf", "#ff8b94", "#ffd93d"]
-          : ["#ff9a8b", "#a8edea", "#fed6e3", "#ffeaa7", "#dda0dd", "#98fb98"],
-        voice: {
-          attributes: nicheData.voice,
-          dos: [`Be ${nicheData.voice[0]}`, `Share ${primaryNiche} content`, "Engage authentically"],
-          donts: ["Don't be fake", "Don't ignore your audience", "Don't post off-brand content"]
-        },
-        logoPrompts: [
-          `Modern ${primaryNiche} logo for ${creatorType}`,
-          `Clean ${vibeText} design for ${parsed.brandName}`,
-          `${platforms[0]} optimized brand mark`
-        ]
-      };
+      // Use smart fallback based on creator type and niche
+      data = generateSmartBrandKit(creatorType, primaryNiche, parsed.brandName || "", vibeText, platforms);
+      
+      console.log("Smart fallback generated successfully");
     }
 
-    console.log("Final data to save:", data);
+    console.log("Final brand kit data:", data);
 
-    await prisma.brandKit.create({
+    // Save to database
+    const savedBrandKit = await prisma.brandKit.create({
       data: {
         userId: session.user.id,
         brandName: parsed.brandName,
@@ -223,29 +328,78 @@ Create a brand kit for this ${primaryNiche} ${creatorType} with ${audienceSize} 
       },
     });
 
-    console.log("Brand kit saved successfully");
+    console.log("Brand kit saved successfully with ID:", savedBrandKit.id);
+    
+    // Redirect to next step
     redirect("/onboarding/steps/mediakit");
     
   } catch (error) {
     console.error("Brand kit generation error:", error);
     
-    // Fixed TypeScript errors: properly handle ZodError and unknown error types
+    // Handle specific error types
     if (error instanceof z.ZodError) {
-      console.error("Validation error:", error.issues); // Changed from .errors to .issues
+      console.error("Validation error:", error.issues);
       throw new Error("Invalid data format. Please check your inputs.");
     }
     
-    if (error instanceof SyntaxError) {
-      console.error("JSON parsing error:", error);
-      throw new Error("AI response format error. Please try again.");
+    // Check if this is actually a successful redirect (Next.js throws on redirect)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("NEXT_REDIRECT")) {
+      console.log("Redirect successful, brand kit created");
+      return; // Don't throw error for successful redirects
     }
     
-    // Proper error handling for unknown error type
-    const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage?.includes("API key")) {
       throw new Error("AI service configuration error. Please contact support.");
     }
     
-    throw new Error("Failed to generate brand kit. Please try again.");
+    // For any other error, try one more time with guaranteed fallback
+    try {
+      console.log("Attempting emergency fallback...");
+      
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.id) {
+        throw new Error("Not authenticated");
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          name: true,
+          creatorType: true,
+          niches: true,
+        }
+      });
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      const creatorType = user.creatorType || "youtuber";
+      const primaryNiche = (user.niches && user.niches.length > 0 ? user.niches[0] : "lifestyle");
+      const platforms = CREATOR_PLATFORM_MAP[creatorType as keyof typeof CREATOR_PLATFORM_MAP] || ["Social Media"];
+      
+      const emergencyData = generateSmartBrandKit(creatorType, primaryNiche, user.name || "", "modern, professional", platforms);
+      
+      await prisma.brandKit.create({
+        data: {
+          userId: session.user.id,
+          brandName: user.name,
+          vibe: "modern, professional",
+          audience: `${primaryNiche} enthusiasts`,
+          tagline: emergencyData.tagline,
+          palette: emergencyData.palette,
+          voice: emergencyData.voice as any,
+          logoPrompts: emergencyData.logoPrompts,
+        },
+      });
+
+      console.log("Emergency fallback successful");
+      redirect("/onboarding/steps/mediakit");
+      
+    } catch (finalError) {
+      console.error("All fallbacks failed:", finalError);
+      throw new Error("Unable to generate brand kit. Please try again or contact support.");
+    }
   }
 }

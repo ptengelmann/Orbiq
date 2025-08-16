@@ -11,10 +11,10 @@ const HANDLE_SUGGESTIONS = [
 ];
 
 const BIO_TEMPLATES = [
-  "Content creator passionate about [your niche] | Collaborating with brands worldwide",
-  "Digital storyteller | [Your specialty] expert | Let's create something amazing together",
-  "[Your niche] creator | Building community through authentic content | Open for partnerships",
-  "Creative professional | [Your focus area] | Turning ideas into engaging content"
+  "Content creator passionate about {niche} | Collaborating with brands worldwide",
+  "Digital storyteller | {specialty} expert | Let's create something amazing together", 
+  "{niche} creator | Building community through authentic content | Open for partnerships",
+  "Creative professional | {focus} | Turning ideas into engaging content"
 ];
 
 export default function MediaKitStep() {
@@ -109,10 +109,8 @@ export default function MediaKitStep() {
     // Clear previous errors
     setErrors({});
     
-    // Basic validation
-    const newErrors: Record<string, string> = {};
+    // Basic validation with auto-fixes
     if (!formData.handle.trim()) {
-      // Auto-generate handle if missing
       const autoHandle = `creator${Date.now().toString().slice(-6)}`;
       setFormData(prev => ({ ...prev, handle: autoHandle }));
     }
@@ -124,8 +122,27 @@ export default function MediaKitStep() {
       setFormData(prev => ({ ...prev, title: "Content Creator" }));
     }
     
-    const finalBio = formData.customBio || selectedBioTemplate || "Content creator ready for brand collaborations";
+    // Fix bio template parsing - replace placeholders with actual values
+    let finalBio = formData.customBio || selectedBioTemplate || "Content creator ready for brand collaborations";
     
+    // Replace bio template placeholders with real data
+    if (finalBio.includes('[your niche]') || finalBio.includes('[Your niche]')) {
+      const userNiche = userProfile?.niches?.[0] || 'content';
+      finalBio = finalBio.replace(/\[your niche\]/gi, userNiche);
+      finalBio = finalBio.replace(/\[Your niche\]/gi, userNiche.charAt(0).toUpperCase() + userNiche.slice(1));
+    }
+    
+    if (finalBio.includes('[Your specialty]')) {
+      const specialty = userProfile?.creatorType || 'content creation';
+      finalBio = finalBio.replace(/\[Your specialty\]/gi, specialty);
+    }
+    
+    if (finalBio.includes('[your focus area]') || finalBio.includes('[Your focus area]')) {
+      const focusArea = userProfile?.niches?.join(' & ') || 'digital content';
+      finalBio = finalBio.replace(/\[your focus area\]/gi, focusArea);
+      finalBio = finalBio.replace(/\[Your focus area\]/gi, focusArea);
+    }
+
     setLoading(true);
     
     try {
@@ -138,7 +155,9 @@ export default function MediaKitStep() {
       }
       
       await createMediaKit(formDataToSend);
-      // If we get here without error, the redirect was successful
+      
+      // If we reach here, there was an error (no redirect happened)
+      console.log("Media kit creation completed");
       
     } catch (error) {
       console.error("Media kit creation failed:", error);
@@ -146,18 +165,18 @@ export default function MediaKitStep() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
       // Check if the error is actually a successful redirect
-      if (errorMessage.includes("NEXT_REDIRECT") || errorMessage.includes("Failed to create media kit")) {
-        console.log("Redirect successful or media kit created, redirecting manually");
+      if (errorMessage.includes("NEXT_REDIRECT") || errorMessage.includes("redirect")) {
+        console.log("Redirect successful, media kit created, navigating manually");
         router.push("/dashboard");
         return;
       }
       
       // Show error but also provide fallback
       setErrors({ 
-        submit: "Having trouble creating your media kit. We'll complete your setup anyway." 
+        submit: "Having trouble with the redirect. We'll complete your setup anyway." 
       });
       
-      // Use fallback completion after 2 seconds
+      // Use fallback completion after showing message
       setTimeout(() => {
         completeOnboardingFallback();
       }, 2000);
